@@ -37,12 +37,50 @@ function handleDisconnect() {
         connectTimeout: 30000 // 30 másodperc időtúllépési határ
     });
 
-    db.connect((err) => {
+db.connect((err) => {
         if (err) {
             console.error('MySQL csatlakozási hiba:', err);
-            console.setTimeout(handleDisconnect, 2000); // Újrapróbálás 2 másodperc múlva
+            setTimeout(handleDisconnect, 2000);
         } else {
             console.log('Sikeres csatlakozás a MySQL adatbázishoz!');
+            
+            // --- ITT HOZZUK LÉTRE AZ ÖSSZES TÁBLÁT, HA MÉG NEM LÉTEZNEK ---
+            
+            // 1. Announcements (ez már megvan)
+            db.query(`CREATE TABLE IF NOT EXISTS announcements (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                title VARCHAR(255),
+                content TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )`, (err) => { if (err) console.error("Hiba announcements tábla:", err); });
+
+            // 2. Users / Adminok / Bírók tábla (ha van ilyen)
+            db.query(`CREATE TABLE IF NOT EXISTS users (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                username VARCHAR(255) NOT NULL,
+                password VARCHAR(255) NOT NULL,
+                role VARCHAR(50) DEFAULT 'judge'
+            )`, (err) => { if (err) console.error("Hiba users tábla:", err); });
+
+            // 3. Competitors (Versenyzők) tábla
+            db.query(`CREATE TABLE IF NOT EXISTS competitors (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                team VARCHAR(255),
+                email VARCHAR(255),
+                category VARCHAR(100)
+            )`, (err) => { if (err) console.error("Hiba competitors tábla:", err); });
+
+            // 4. Scores / Pontok tábla
+            db.query(`CREATE TABLE IF NOT EXISTS scores (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                competitor_id INT,
+                task_name VARCHAR(255),
+                score INT,
+                judge VARCHAR(255)
+            )`, (err) => { if (err) console.error("Hiba scores tábla:", err); });
+            
+            // ----------------------------------------------------------------
         }
     });
 
