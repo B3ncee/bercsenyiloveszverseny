@@ -26,10 +26,10 @@ app.use(sessionMiddleware);
 io.engine.use(sessionMiddleware);
 
 const db = mysql.createConnection({
-    host: process.env.MYSQLHOST || process.env.DB_HOST || 'localhost',
-    user: process.env.MYSQLUSER || process.env.DB_USER || 'root',
-    password: process.env.MYSQLPASSWORD || process.env.DB_PASS || '',
-    database: process.env.MYSQLDATABASE || process.env.DB_NAME || 'loveszverseny',
+    host: process.env.MYSQLHOST || process.env.DB_HOST,
+    user: process.env.MYSQLUSER || process.env.DB_USER,
+    password: process.env.MYSQLPASSWORD || process.env.DB_PASS,
+    database: process.env.MYSQL_DATABASE || process.env.MYSQLDATABASE || process.env.DB_NAME || 'loveszverseny',
     port: process.env.MYSQLPORT || process.env.DB_PORT || 3306
 });
 
