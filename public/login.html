@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <title>Bejelentkezés - Lövészverseny</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-gray-900 text-white flex items-center justify-center h-screen">
+    <div class="bg-gray-800 p-8 rounded-xl shadow-lg w-96 border border-gray-700">
+        <h1 class="text-2xl font-bold mb-6 text-center text-red-500">Rendszer Bejelentkezés</h1>
+        
+        <form id="loginForm" class="space-y-4">
+            <input type="text" id="username" placeholder="Felhasználónév" required class="w-full p-3 bg-gray-900 rounded border border-gray-600">
+            <input type="password" id="password" placeholder="Jelszó" required class="w-full p-3 bg-gray-900 rounded border border-gray-600">
+            <button type="submit" class="w-full bg-red-600 hover:bg-red-700 p-3 rounded font-bold cursor-pointer">Belépés</button>
+        </form>
+
+        <div id="passwordChangeSection" class="hidden mt-6 pt-6 border-t border-gray-700">
+            <h2 class="text-lg font-semibold mb-2 text-yellow-400">Első belépés: Jelszócsere szükséges</h2>
+            <form id="passwordForm" class="space-y-4">
+                <input type="password" id="newPassword" placeholder="Új jelszó megadása (min. 6 karakter)" required class="w-full p-3 bg-gray-900 rounded border border-gray-600">
+                <button type="submit" class="w-full bg-yellow-600 hover:bg-yellow-700 p-3 rounded font-bold cursor-pointer">Új Jelszó Mentése</button>
+            </form>
+        </div>
+
+        <p id="errorMsg" class="text-red-400 text-center mt-4 text-sm"></p>
+        <div class="mt-6 text-center">
+            <a href="/" class="text-gray-400 hover:underline text-sm">← Vissza a főoldalra</a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: document.getElementById('username').value,
+                    password: document.getElementById('password').value
+                })
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                if (data.mustChangePassword) {
+                    document.getElementById('loginForm').classList.add('hidden');
+                    document.getElementById('passwordChangeSection').classList.remove('hidden');
+                } else {
+                    redirectUser(data.role);
+                }
+            } else {
+                document.getElementById('errorMsg').innerText = data.message;
+            }
+        });
+
+        document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const res = await fetch('/api/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ newPassword: document.getElementById('newPassword').value })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert('Sikeres jelszóváltoztatás! Átirányítás a felületre...');
+                redirectUser(data.role);
+            } else {
+                alert(data.message);
+            }
+        });
+
+        function redirectUser(role) {
+            if (role === 'admin') window.location.href = '/admin.html';
+            else if (role === 'judge') window.location.href = '/judge.html';
+        }
+    </script>
+</body>
+</html>

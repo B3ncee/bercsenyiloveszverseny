@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Élő Verseny Kivetítő - Lövészverseny 2026</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(10px); }
+            15% { opacity: 1; transform: translateY(0); }
+            85% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-10px); }
+        }
+        .slide-panel {
+            animation: fadeInOut 7s infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-950 text-white font-sans min-h-screen flex flex-col justify-between overflow-hidden p-8">
+    
+    <!-- HEADER -->
+    <header class="text-center py-4 border-b border-gray-800 flex justify-between items-center">
+        <div class="text-left">
+            <h1 class="text-3xl font-black text-red-500 tracking-wider">🎯 LÖVÉSZVERSENY 2026</h1>
+            <p class="text-gray-400 text-sm">Hivatalos Élő Eredmény Kivetítő</p>
+        </div>
+        <div id="clock" class="text-3xl font-mono font-bold text-yellow-400">00:00:00</div>
+    </header>
+
+    <!-- MAIN CONTENT CONTAINER: PÖRGŐ / LÉPCSŐS NÉZET -->
+    <main class="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-8 items-center my-auto">
+        
+        <!-- BAL OLDAL: CSAPATOK DOBOGÓS / LÉPCSŐS NÉZETE (TOP 5) -->
+        <section class="bg-gray-900/90 border border-gray-800 p-8 rounded-3xl shadow-2xl space-y-6">
+            <div class="flex justify-between items-center border-b border-gray-800 pb-4">
+                <h2 class="text-2xl font-extrabold text-yellow-400 flex items-center gap-3">
+                    <span>🛡️ Csapatok Rangsora (Top 5)</span>
+                </h2>
+                <span class="text-xs uppercase tracking-widest bg-yellow-500/20 text-yellow-300 px-3 py-1 rounded-full font-bold">Sorrendbe Rendezte</span>
+            </div>
+            
+            <div id="podiumTeams" class="space-y-3">
+                <div class="text-gray-400 text-center py-10">Adatok betöltése...</div>
+            </div>
+        </section>
+
+        <!-- JOBB OLDAL: PÖRGŐ EGYÉNI FÉRFIAK ÉS NŐK (MINT A PÉNZVÁLTÓ) -->
+        <section class="bg-gray-900/90 border border-gray-800 p-8 rounded-3xl shadow-2xl relative overflow-hidden h-[450px] flex flex-col justify-between">
+            <div class="flex justify-between items-center border-b border-gray-800 pb-4">
+                <h2 id="rightPanelTitle" class="text-2xl font-extrabold text-blue-400 flex items-center gap-3">
+                    <span>👨 Egyéni Férfi Top Lista</span>
+                </h2>
+                <span class="text-xs uppercase tracking-widest bg-blue-500/20 text-blue-300 px-3 py-1 rounded-full font-bold">Automatikus Pörgés</span>
+            </div>
+
+            <div id="tickerContainer" class="flex-grow flex flex-col justify-center space-y-4 transition-all duration-700">
+            </div>
+
+            <div class="text-center text-xs text-gray-500 pt-2 border-t border-gray-800">
+                A nézet automatikusan váltakozik a Férfi és Női egyéni kategóriák között (pénzváltó stílusban).
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-gray-900 border-t border-gray-800 py-3 px-6 rounded-2xl flex justify-between items-center text-sm text-gray-400">
+        <div>💡 Tipp: Az eredmények a bírói rögzítést követően azonnal, valós időben frissülnek.</div>
+        <div class="text-yellow-500 font-semibold">Országos Bajnokság 2026</div>
+    </footer>
+
+    <script>
+        const socket = io();
+        let cachedData = null;
+        let currentRightView = 'male';
+
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('clock').innerText = now.toTimeString().split(' ')[0];
+        }, 1000);
+
+        async function fetchResults() {
+            try {
+                const res = await fetch('/api/results');
+                if (res.ok) {
+                    cachedData = await res.json();
+                    renderDisplay(cachedData);
+                }
+            } catch (e) {
+                console.error('Hiba az adatok lekérdezésekor:', e);
+            }
+        }
+
+        function getStepStyle(index) {
+            if (index === 0) return 'bg-gradient-to-r from-yellow-600/40 to-yellow-900/40 border-yellow-500 text-yellow-300'; // Arany
+            if (index === 1) return 'bg-gradient-to-r from-gray-400/30 to-gray-700/30 border-gray-400 text-gray-200'; // Ezüst
+            if (index === 2) return 'bg-gradient-to-r from-amber-700/30 to-amber-950/30 border-amber-600 text-amber-400'; // Bronz
+            return 'bg-gradient-to-r from-indigo-950/40 to-blue-950/40 border-indigo-700 text-indigo-300'; // 4., 5. hely (másik jó szín)
+        }
+
+        function getMedalBadge(index) {
+            if (index === 0) return '🥇 1.';
+            if (index === 1) return '🥈 2.';
+            if (index === 2) return '🥉 3.';
+            return `#${index + 1}`;
+        }
+
+        function renderDisplay(data) {
+            const podiumEl = document.getElementById('podiumTeams');
+            podiumEl.innerHTML = '';
+            
+            const topTeams = (data.topTeams || []).slice(0, 5);
+            if (topTeams.length === 0) {
+                podiumEl.innerHTML = '<div class="text-gray-500 text-center py-6">Még nincs rögzített csapat eredmény.</div>';
+            } else {
+                topTeams.forEach((t, idx) => {
+                    const styleClass = getStepStyle(idx);
+                    podiumEl.innerHTML += `
+                        <div class="flex items-center justify-between p-4 rounded-2xl border ${styleClass} shadow-md transition transform hover:scale-[1.01]">
+                            <div class="flex items-center gap-4">
+                                <span class="text-xl font-black w-12">${getMedalBadge(idx)}</span>
+                                <div>
+                                    <h3 class="font-bold text-lg">${t.team_number}. ${t.name}</h3>
+                                    <p class="text-xs opacity-75">Tagok száma: ${t.member_count} fő</p>
+                                </div>
+                            </div>
+                            <div class="text-2xl font-black">${t.total_points} <span class="text-sm font-normal">pont</span></div>
+                        </div>
+                    `;
+                });
+            }
+
+            renderRightTicker(data);
+        }
+
+        function renderRightTicker(data) {
+            const container = document.getElementById('tickerContainer');
+            const titleEl = document.getElementById('rightPanelTitle');
+            container.innerHTML = '';
+
+            if (currentRightView === 'male') {
+                titleEl.innerHTML = '<span>👨 Egyéni Férfi Top 3</span>';
+                const males = (data.topMale || []).slice(0, 3);
+                if (males.length === 0) {
+                    container.innerHTML = '<div class="text-gray-500 text-center">Nincs férfi eredmény.</div>';
+                } else {
+                    males.forEach((m, idx) => {
+                        const styleClass = getStepStyle(idx);
+                        container.innerHTML += `
+                            <div class="flex items-center justify-between p-4 rounded-xl border ${styleClass} slide-panel">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-lg font-bold">${getMedalBadge(idx)}</span>
+                                    <div>
+                                        <div class="font-bold text-lg">${m.name}</div>
+                                        <div class="text-xs opacity-75">${m.school} ${m.team_name ? '(' + m.team_name + ')' : ''}</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-xl font-bold">${m.total_points} p</div>
+                                    <div class="text-xs text-blue-300">${m.best_time ? m.best_time + ' mp' : ''}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+            } else {
+                titleEl.innerHTML = '<span>👩 Egyéni Női Top 3</span>';
+                const females = (data.topFemale || []).slice(0, 3);
+                if (females.length === 0) {
+                    container.innerHTML = '<div class="text-gray-500 text-center">Női eredmény.</div>';
+                } else {
+                    females.forEach((f, idx) => {
+                        const styleClass = getStepStyle(idx);
+                        container.innerHTML += `
+                            <div class="flex items-center justify-between p-4 rounded-xl border ${styleClass} slide-panel">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-lg font-bold">${getMedalBadge(idx)}</span>
+                                    <div>
+                                        <div class="font-bold text-lg">${f.name}</div>
+                                        <div class="text-xs opacity-75">${f.school} ${f.team_name ? '(' + f.team_name + ')' : ''}</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-xl font-bold">${f.total_points} p</div>
+                                    <div class="text-xs text-pink-300">${f.best_time ? f.best_time + ' mp' : ''}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+            }
+        }
+
+        setInterval(() => {
+            currentRightView = (currentRightView === 'male') ? 'female' : 'male';
+            if (cachedData) {
+                renderRightTicker(cachedData);
+            }
+        }, 7000);
+
+        socket.on('update_results', (data) => {
+            cachedData = data;
+            renderDisplay(data);
+        });
+
+        fetchResults();
+    </script>
+</body>
+</html>

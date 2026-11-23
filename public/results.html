@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eredmények - Lövészverseny 2026</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body class="bg-gray-900 text-white font-sans min-h-screen flex flex-col">
+    <nav class="bg-gray-800 border-b border-gray-700 sticky top-0 z-50 shadow-lg">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex flex-wrap justify-between items-center gap-4">
+            <a href="/" class="text-2xl font-extrabold text-red-500 flex items-center gap-2">🎯 Lövészverseny 2026</a>
+            <div class="flex flex-wrap items-center gap-3">
+                <a href="/" class="px-4 py-2 rounded hover:bg-gray-700 transition font-semibold">Főoldal & Leírás</a>
+                <a href="/results.html" class="px-4 py-2 rounded bg-yellow-600 text-white font-bold">🏆 Eredmények</a>
+                <a href="/display.html" target="_blank" class="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 transition text-sm">Élő Kivetítő</a>
+                <a href="/login.html" class="px-4 py-2 rounded bg-red-600 hover:bg-red-700 transition font-bold">Bejelentkezés</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-6 max-w-6xl flex-grow space-y-10">
+        <header class="text-center my-6">
+            <h1 class="text-4xl font-extrabold text-yellow-400">🏆 Hivatalos Versenyeredmények</h1>
+            <p class="text-gray-400 mt-2">Élőben frissülő dobogós helyezések és részletes csapatnézet</p>
+        </header>
+
+        <!-- TOP 5 CSAPAT -->
+        <section class="bg-gray-800 p-6 rounded-2xl shadow-xl border border-gray-700">
+            <h2 class="text-2xl font-bold mb-4 text-yellow-400">🛡️ Legjobb 5 Csapat (Csapatverseny)</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-700 text-gray-300 text-sm">
+                            <th class="p-3">Helyezés</th>
+                            <th class="p-3">Csapat Sorszáma & Neve</th>
+                            <th class="p-3">Tagok száma</th>
+                            <th class="p-3">Összpontszám</th>
+                        </tr>
+                    </thead>
+                    <tbody id="topTeamsBody" class="divide-y divide-gray-700 text-lg">
+                        <tr><td colspan="4" class="p-4 text-center text-gray-400">Betöltés...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- EGYÉNI KATEGÓRIÁK: FÉRFI TOP 3 & NŐI TOP 3 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <section class="bg-gray-800 p-6 rounded-2xl shadow-xl border border-gray-700">
+                <h2 class="text-2xl font-bold mb-4 text-blue-400">👨 Egyéni Férfi – Top 3</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-700 text-gray-300 text-sm">
+                                <th class="p-3">Hely</th>
+                                <th class="p-3">Név / Iskola</th>
+                                <th class="p-3">Pontszám</th>
+                                <th class="p-3">Idő</th>
+                            </tr>
+                        </thead>
+                        <tbody id="topMaleBody" class="divide-y divide-gray-700"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="bg-gray-800 p-6 rounded-2xl shadow-xl border border-gray-700">
+                <h2 class="text-2xl font-bold mb-4 text-pink-400">👩 Egyéni Női – Top 3</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-700 text-gray-300 text-sm">
+                                <th class="p-3">Hely</th>
+                                <th class="p-3">Név / Iskola</th>
+                                <th class="p-3">Pontszám</th>
+                                <th class="p-3">Idő</th>
+                            </tr>
+                        </thead>
+                        <tbody id="topFemaleBody" class="divide-y divide-gray-700"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- ÚJ: CSAPAT & TAGOK RÉSZLETES NÉZETE (MINDENKI SZÁMÁRA) -->
+        <section class="bg-gray-800 p-6 rounded-2xl shadow-xl border border-gray-700 space-y-6">
+            <div class="flex flex-wrap justify-between items-center gap-4">
+                <h2 class="text-2xl font-bold text-yellow-400">🔍 Csapatok Részletes Eredményei & Tagjai</h2>
+                <select id="teamSelector" onchange="loadTeamDetails(this.value)" class="p-3 bg-gray-900 rounded border border-gray-600 text-white font-semibold min-w-[250px]">
+                    <option value="">Válassz csapatot a megtekintéshez...</option>
+                </select>
+            </div>
+
+            <div id="teamDetailsContainer" class="hidden space-y-6 pt-4 border-t border-gray-700">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-lg font-bold text-blue-400 mb-3">👥 Csapattagok</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-sm">
+                                <thead>
+                                    <tr class="bg-gray-700 text-gray-300">
+                                        <th class="p-2">Név</th>
+                                        <th class="p-2">Iskola</th>
+                                        <th class="p-2">Nem</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="teamMembersTable" class="divide-y divide-gray-700"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-green-400 mb-3">🎯 Csapat & Tagok Feladat Eredményei</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-sm">
+                                <thead>
+                                    <tr class="bg-gray-700 text-gray-300">
+                                        <th class="p-2">Feladat</th>
+                                        <th class="p-2">Típus</th>
+                                        <th class="p-2">Kiért (Tag / Csapat)</th>
+                                        <th class="p-2">Idő (mp)</th>
+                                        <th class="p-2">Pontszám</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="teamScoresTable" class="divide-y divide-gray-700"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-gray-800 border-t border-gray-700 py-6 text-center text-gray-400 text-sm mt-12">
+        © 2026 Országos Lövészverseny – Élő Eredményközlő
+    </footer>
+
+    <script>
+        const socket = io();
+        let allTeamsList = [];
+
+        function getMedal(index) {
+            if (index === 0) return '🥇 1.';
+            if (index === 1) return '🥈 2.';
+            if (index === 2) return '🥉 3.';
+            return `#${index + 1}`;
+        }
+
+        function renderResults(data) {
+            // Top 5 Csapat
+            const teamsBody = document.getElementById('topTeamsBody');
+            teamsBody.innerHTML = '';
+            if (!data.topTeams || data.topTeams.length === 0) {
+                teamsBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-400">Még nincs rögzített csapat eredmény.</td></tr>';
+            } else {
+                data.topTeams.forEach((t, idx) => {
+                    teamsBody.innerHTML += `
+                        <tr class="hover:bg-gray-750">
+                            <td class="p-3 font-bold text-yellow-400">${getMedal(idx)}</td>
+                            <td class="p-3 font-bold">${t.team_number}. ${t.name}</td>
+                            <td class="p-3 text-gray-300">${t.member_count} fő</td>
+                            <td class="p-3 font-extrabold text-green-400">${t.total_points} pont</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            // Férfi Top 3
+            const maleBody = document.getElementById('topMaleBody');
+            maleBody.innerHTML = '';
+            (data.topMale || []).forEach((m, idx) => {
+                maleBody.innerHTML += `
+                    <tr class="hover:bg-gray-750">
+                        <td class="p-3 font-bold text-yellow-400">${getMedal(idx)}</td>
+                        <td class="p-3"><div class="font-bold">${m.name}</div><div class="text-xs text-gray-400">${m.school} ${m.team_name ? '(' + m.team_name + ')' : ''}</div></td>
+                        <td class="p-3 font-extrabold text-green-400">${m.total_points} p</td>
+                        <td class="p-3 text-blue-400 text-sm">${m.best_time ? m.best_time + ' mp' : '-'}</td>
+                    </tr>
+                `;
+            });
+
+            // Női Top 3
+            const femaleBody = document.getElementById('topFemaleBody');
+            femaleBody.innerHTML = '';
+            (data.topFemale || []).forEach((f, idx) => {
+                femaleBody.innerHTML += `
+                    <tr class="hover:bg-gray-750">
+                        <td class="p-3 font-bold text-yellow-400">${getMedal(idx)}</td>
+                        <td class="p-3"><div class="font-bold">${f.name}</div><div class="text-xs text-gray-400">${f.school} ${f.team_name ? '(' + f.team_name + ')' : ''}</div></td>
+                        <td class="p-3 font-extrabold text-green-400">${f.total_points} p</td>
+                        <td class="p-3 text-blue-400 text-sm">${f.best_time ? f.best_time + ' mp' : '-'}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function loadResults() {
+            const res = await fetch('/api/results');
+            if (res.ok) {
+                const data = await res.json();
+                renderResults(data);
+            }
+            const teamsRes = await fetch('/api/admin/teams');
+            if (teamsRes.ok) {
+                allTeamsList = await teamsRes.json();
+                const selector = document.getElementById('teamSelector');
+                selector.innerHTML = '<option value="">Válassz csapatot a megtekintéshez...</option>' +
+                    allTeamsList.map(t => `<option value="${t.id}">${t.team_number}. ${t.name}</option>`).join('');
+            }
+        }
+
+        async function loadTeamDetails(teamId) {
+            if (!teamId) {
+                document.getElementById('teamDetailsContainer').classList.add('hidden');
+                return;
+            }
+            const res = await fetch(`/api/team-details/${teamId}`);
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById('teamDetailsContainer').classList.remove('hidden');
+
+                const membersTbody = document.getElementById('teamMembersTable');
+                membersTbody.innerHTML = '';
+                (data.members || []).forEach(m => {
+                    membersTbody.innerHTML += `
+                        <tr class="hover:bg-gray-750">
+                            <td class="p-2 font-semibold">${m.name}</td>
+                            <td class="p-2 text-gray-300">${m.school}</td>
+                            <td class="p-2">${m.gender === 'female' ? '👩 Nő' : '👨 Férfi'}</td>
+                        </tr>
+                    `;
+                });
+
+                const scoresTbody = document.getElementById('teamScoresTable');
+                scoresTbody.innerHTML = '';
+                if (!data.scores || data.scores.length === 0) {
+                    scoresTbody.innerHTML = '<tr><td colspan="5" class="p-2 text-center text-gray-400">Még nincs rögzített pontszám.</td></tr>';
+                } else {
+                    data.scores.forEach(s => {
+                        scoresTbody.innerHTML += `
+                            <tr class="hover:bg-gray-750">
+                                <td class="p-2 font-semibold">${s.task_name}</td>
+                                <td class="p-2"><span class="px-1.5 py-0.5 rounded text-xs ${s.task_type === 'team' ? 'bg-purple-900 text-purple-200' : 'bg-blue-900 text-blue-200'}">${s.task_type === 'team' ? 'Csapat' : 'Egyéni'}</span></td>
+                                <td class="p-2">${s.competitor_name || 'Egész Csapat'}</td>
+                                <td class="p-2 text-blue-400">${s.recorded_time} mp</td>
+                                <td class="p-2 font-bold text-green-400">${s.awarded_points} p</td>
+                            </tr>
+                        `;
+                    });
+                }
+            }
+        }
+
+        socket.on('update_results', (data) => {
+            renderResults(data);
+        });
+
+        loadResults();
+    </script>
+</body>
+</html>

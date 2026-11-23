@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Versenyzői Jelentkezés - Lövészverseny 2026</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-gray-900 text-white font-sans min-h-screen flex flex-col justify-between p-6">
+    <nav class="bg-gray-800 border-b border-gray-700 max-w-4xl mx-auto w-full px-6 py-4 rounded-xl flex justify-between items-center shadow-lg mb-8">
+        <a href="/" class="text-2xl font-extrabold text-red-500">🎯 Lövészverseny 2026</a>
+        <div class="flex gap-4">
+            <a href="/" class="px-4 py-2 rounded bg-gray-700 font-bold">Főoldal</a>
+            <a href="/results.html" class="px-4 py-2 rounded hover:bg-gray-700 transition">Eredmények</a>
+            <a href="/login.html" class="px-4 py-2 rounded bg-red-600 hover:bg-red-700 font-bold">Bejelentkezés</a>
+        </div>
+    </nav>
+
+    <main class="max-w-xl mx-auto w-full bg-gray-800 p-8 rounded-2xl border border-gray-700 shadow-2xl space-y-6">
+        <header class="text-center space-y-2">
+            <h1 class="text-3xl font-black text-yellow-400">Versenyzői Jelentkezés / Nevezés</h1>
+            <p class="text-gray-300 text-sm">Töltse ki az alábbi űrlapot a jelentkezéshez. A regisztráció után egy megerősítő e-mailt küldünk!</p>
+        </header>
+
+        <form id="registerForm" class="space-y-4">
+            <div>
+                <label class="block text-sm text-gray-400 mb-1">Teljes Név:</label>
+                <input type="text" id="reg_name" required class="w-full p-3 bg-gray-900 rounded border border-gray-600">
+            </div>
+            <div>
+                <label class="block text-sm text-gray-400 mb-1">Nem:</label>
+                <select id="reg_gender" required class="w-full p-3 bg-gray-900 rounded border border-gray-600">
+                    <option value="">Válassz nemet...</option>
+                    <option value="male">Férfi</option>
+                    <option value="female">Nő</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm text-gray-400 mb-1">Iskola / Szervezet:</label>
+                <input type="text" id="reg_school" required class="w-full p-3 bg-gray-900 rounded border border-gray-600">
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Születési Hely:</label>
+                    <input type="text" id="reg_birth_place" required class="w-full p-3 bg-gray-900 rounded border border-gray-600">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 nab-1">Születési Dátum:</label>
+                    <input type="date" id="reg_birth_date" required class="w-full p-3 bg-gray-900 rounded border border-gray-600">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm text-gray-400 mb-1">E-mail Cím (megerősítéshez):</label>
+                <input type="email" id="reg_email" required class="w-full p-3 bg-gray-900 rounded border border-gray-600">
+            </div>
+            <div>
+                <label class="block text-sm text-gray-400 mb-1">Ételallergia / Megjegyzés (Opcionális):</label>
+                <input type="text" id="reg_allergies" class="w-full p-3 bg-gray-900 rounded border border-gray-600">
+            </div>
+
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 p-4 rounded-xl font-bold text-lg cursor-pointer transition">Nevezés / Jelentkezés Elküldése</button>
+        </form>
+        <div id="regMessage" class="text-center text-sm font-semibold"></div>
+    </main>
+
+    <footer class="text-center text-gray-500 text-sm py-4">
+        © 2026 Országos Lövészverseny
+    </footer>
+
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const msgEl = document.getElementById('regMessage');
+            msgEl.innerText = 'Küldés folyamatban...';
+            msgEl.className = 'text-center text-sm font-semibold text-yellow-400';
+
+            const payload = {
+                name: document.getElementById('reg_name').value,
+                gender: document.getElementById('reg_gender').value,
+                school: document.getElementById('reg_school').value,
+                birth_place: document.getElementById('reg_birth_place').value,
+                birth_date: document.getElementById('reg_birth_date').value,
+                email: document.getElementById('reg_email').value,
+                food_allergies: document.getElementById('reg_allergies').value
+            };
+
+            try {
+                const res = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    msgEl.innerText = data.message;
+                    msgEl.className = 'text-center text-sm font-semibold text-green-400';
+                    document.getElementById('registerForm').reset();
+                } else {
+                    msgEl.innerText = data.message || 'Hiba történt a regisztráció során.';
+                    msgEl.className = 'text-center text-sm font-semibold text-red-400';
+                }
+            } catch (err) {
+                msgEl.innerText = 'Hálózati hiba történt.';
+                msgEl.className = 'text-center text-sm font-semibold text-red-400';
+            }
+        });
+    </script>
+</body>
+</html>

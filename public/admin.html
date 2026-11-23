@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Panel - Lövészverseny</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-gray-900 text-white font-sans p-6">
+    <div class="max-w-7xl mx-auto space-y-6">
+        <header class="flex flex-wrap justify-between items-center bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 gap-4">
+            <h1 class="text-3xl font-bold text-red-500">🛠️ Adminisztrátori Vezérlőpult</h1>
+            <div class="flex flex-wrap gap-3">
+                <a href="/" class="bg-gray-700 px-4 py-2 rounded hover:bg-gray-600">Főoldal</a>
+                <a href="/results.html" target="_blank" class="bg-yellow-600 px-4 py-2 rounded font-bold hover:bg-yellow-500">🏆 Eredmények</a>
+                <a href="/display.html" target="_blank" class="bg-blue-600 px-4 py-2 rounded font-bold hover:bg-blue-500">📺 Kivetítő</a>
+                <button onclick="logout()" class="bg-red-700 px-4 py-2 rounded hover:bg-red-600 cursor-pointer font-bold">Kijelentkezés</button>
+            </div>
+        </header>
+
+        <div class="flex flex-wrap gap-2 border-b border-gray-700 pb-3">
+            <button onclick="switchTab('announcements')" id="tab-btn-announcements" class="tab-btn px-5 py-2.5 rounded-lg font-bold bg-red-600 text-white cursor-pointer">📢 Kiírások & Hírek</button>
+            <button onclick="switchTab('competitors')" id="tab-btn-competitors" class="tab-btn px-5 py-2.5 rounded-lg font-bold bg-gray-800 text-gray-300 hover:bg-gray-700 cursor-pointer">🎯 Versenyzők</button>
+            <button onclick="switchTab('teams')" id="tab-btn-teams" class="tab-btn px-5 py-2.5 rounded-lg font-bold bg-gray-800 text-gray-300 hover:bg-gray-700 cursor-pointer">🛡️ Csapatok</button>
+            <button onclick="switchTab('users')" id="tab-btn-users" class="tab-btn px-5 py-2.5 rounded-lg font-bold bg-gray-800 text-gray-300 hover:bg-gray-700 cursor-pointer">👤 Fiókok</button>
+            <button onclick="switchTab('tasks')" id="tab-btn-tasks" class="tab-btn px-5 py-2.5 rounded-lg font-bold bg-gray-800 text-gray-300 hover:bg-gray-700 cursor-pointer">⏱️ Feladatok & Szempontok</button>
+        </div>
+
+        <!-- 0. FÜL: KIÍRÁSOK KEZELÉSE -->
+        <div id="tab-announcements" class="tab-content space-y-8">
+            <section class="bg-gray-800 p-6 rounded-xl shadow border border-gray-700 max-w-2xl">
+                <h2 class="text-xl font-semibold mb-4 text-yellow-400">Új Hivatalos Kiírás / Hír Létrehozása</h2>
+                <form id="announcementForm" class="space-y-4">
+                    <input type="text" id="ann_title" placeholder="Kiírás Címe" required class="w-full p-3 bg-gray-900 rounded border border-gray-600">
+                    <textarea id="ann_content" placeholder="Kiírás szövege..." rows="4" required class="w-full p-3 bg-gray-900 rounded border border-gray-600"></textarea>
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 p-3 rounded font-bold cursor-pointer">Kiírás Közzététele</button>
+                </form>
+            </section>
+
+            <section class="bg-gray-800 p-6 rounded-xl shadow border border-gray-700">
+                <h2 class="text-xl font-semibold mb-4 text-yellow-400">Meglévő Kiírások Szerkesztése / Törlése</h2>
+                <div id="adminAnnouncementsList" class="space-y-4"></div>
+            </section>
+        </div>
+
+        <!-- 1. FÜL: VERSENYZŐK -->
+        <div id="tab-competitors" class="tab-content hidden space-y-8">
+            <section class="bg-gray-800 p-6 rounded-xl shadow border border-gray-700">
+                <h2 class="text-xl font-semibold mb-4 text-yellow-400">Függőben lévő (Email-ben megerősített) Jelentkezések</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-700 text-gray-300 text-sm">
+                                <th class="p-3">Név</th>
+                                <th class="p-3">Nem</th>
+                                <th class="p-3">Iskola</th>
+                                <th class="p-3">Szül. Hely / Idő</th>
+                                <th class="p-3">Csapat & Jóváhagyás</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingTableBody" class="divide-y divide-gray-700"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="bg-gray-800 p-6 rounded-xl shadow border border-gray-700">
+                <h2 class="text-xl font-semibold mb-4 text-yellow-400">Összes Regisztrált Versenyző</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-700 text-gray-300 text-sm">
+                                <th class="p-3">Név</th>
+                                <th class="p-3">Nem</th>
+                                <th class="p-3">Iskola</th>
+                                <th class="p-3">Státusz</th>
+                                <th class="p-3">Csapat</th>
+                                <th class="p-3">Műveletek</th>
+                            </tr>
+                        </thead>
+                        <tbody id="allCompetitorsTableBody" class="divide-y divide-gray-700"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- 2. FÜL: CSAPATOK -->
+        <div id="tab-teams" class="tab-content hidden space-y-8">
+            <section class="bg-gray-800 p-6 rounded-xl shadow border border-gray-700">
+                <h2 class="text-xl font-semibold mb-4 text-yellow-400">Új Csapat Létrehozása</h2>
+                <form id="teamForm" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <input type="number" id="team_number" placeholder="Csapat sorszáma (pl. 1)" required class="p-3 bg-gray-900 rounded border border-gray-600">
+                    <input type="text" id="team_name" placeholder="Csapat neve (pl. Sasok)" required class="p-3 bg-gray-900 rounded border border-gray-600">
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 p-3 rounded font-bold cursor-pointer">Csapat Létrehozása</button>
+                </form>
+            </section>
+
+            <section class="bg-gray-800 p-6 rounded-xl shadow border border-gray-700">
+                <h2 class="text-xl font-semibold mb-4 text-yellow-400">Meglévő Csapatok és Tagjaik</h2>
+                <div id="teamsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+            </section>
+        </div>
+
+        <!-- 3. FÜL: FIÓKOK -->
+        <div id="tab-users" class="tab-content hidden space-y-8">
+            <section class="bg-gray-800 p-6 rounded-xl shadow border border-gray-700">
+                <h2 class="text-xl font-semibold mb-4 text-yellow-400">Új Felhasználó (Bíró / Admin) Létrehozása</h2>
+                <form id="userForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <input type="text" id="new_username" placeholder="Felhasználónév" required class="p-3 bg-gray-900 rounded border border-gray-600">
+                    <input type="password" id="new_password" placeholder="Jelszó (min. 6 karakter)" required class="p-3 bg-gray-900 rounded border border-gray-600">
+                    <select id="new_role" class="p-3 bg-gray-900 rounded border border-gray-600">
+                        <option value="judge">Bíró (Judge)</option>
+                        <option value="admin">Adminisztrátor</option>
+                    </select>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 p-3 rounded font-bold cursor-pointer">Fiók Létrehozása</button>
+                </form>
+            </section>
+
+            <section class="bg-gray-800 p-6 rounded-xl shadow border border-gray-700">
+                <h2 class="text-xl font-semibold mb-4 text-yellow-400">Regisztrált Fiókok</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-700 text-gray-300">
+                                <th class="p-3">Felhasználónév</th>
+                                <th class="p-3">Szerepkör</th>
+                                <th class="p-3">Műveletek</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody" class="divide-y divide-gray-700"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- 4. FÜL: FELADATOK & SZEMPONTOK -->
+        <div id="tab-tasks" class="tab-content hidden space-y-8">
+            <section class="bg-gray-800 p-6 rounded-xl shadow border border-gray-700 max-w-3xl">
+                <h2 id="taskFormTitle" class="text-xl font-semibold mb-4 text-yellow-400">Új Versenyfeladat Létrehozása & Szempontok</h2>
+                <form id="taskForm" class="space-y-4">
+                    <input type="hidden" id="edit_task_id">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Feladat Neve</label>
+                        <input type="text" id="task_title" placeholder="Pl. Életmentés / Akadálypálya" required class="w-full p-3 bg-gray-900 rounded border border-gray-600">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Feladat Típusa</label>
+                            <select id="task_type" class="w-full p-3 bg-gray-900 rounded border border-gray-600">
+                                <option value="individual">Egyéni (Egyéni pont -> csapatba is beszámít)</option>
+                                <option value="team">Csapatfeladat (Csapat kapja a pontot)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Hozzárendelt Bíró</label>
+                            <select id="task_judge" class="w-full p-3 bg-gray-900 rounded border border-gray-600">
+                                <option value="">Válassz bírót...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Alappontszám (X pont)</label>
+                            <input type="number" id="task_base_points" value="150" required class="w-full p-3 bg-gray-900 rounded border border-gray-600">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Levonás másodpercenként</label>
+                            <input type="number" step="0.1" id="task_deduction" value="0.5" required class="w-full p-3 bg-gray-900 rounded border border-gray-600">
+                        </div>
+                    </div>
+
+                    <!-- PONTOZÁSI SZEMPONTOK (Pl. Sérültek kihozva: 1 egységenként +/- 10 pont) -->
+                    <div class="border-t border-gray-700 pt-4 space-y-3">
+                        <div class="flex justify-between items-center">
+                            <label class="font-bold text-yellow-400 text-sm">🎯 További Pontozási Szempontok (Opcionális)</label>
+                            <button type="button" onclick="addCriteriaField()" class="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded text-xs font-bold">+ Szempont Hozzáadása</button>
+                        </div>
+                        <div id="criteriaContainer" class="space-y-3"></div>
+                    </div>
+
+                    <div class="flex gap-3 pt-2">
+                        <button type="submit" id="taskSubmitBtn" class="flex-grow bg-green-600 hover:bg-green-700 p-3 rounded font-bold cursor-pointer">Feladat Mentése</button>
+                        <button type="button" id="taskCancelBtn" onclick="resetTaskForm()" class="hidden bg-gray-600 hover:bg-gray-500 p-3 rounded font-bold cursor-pointer">Mégse</button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="bg-gray-800 p-6 rounded-xl shadow border border-gray-700">
+                <h2 class="text-xl font-semibold mb-4 text-yellow-400">Létező Feladatok & Szerkesztés</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-700 text-gray-300 text-sm">
+                                <th class="p-3">Feladat Neve</th>
+                                <th class="p-3">Típus</th>
+                                <th class="p-3">Bíró</th>
+                                <th class="p-3">Alap Pont / Levonás</th>
+                                <th class="p-3">Szempontok</th>
+                                <th class="p-3">Műveletek</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tasksTableBody" class="divide-y divide-gray-700"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Modális szerkesztők -->
+    <div id="editAnnModal" class="hidden fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50">
+        <div class="bg-gray-800 p-6 rounded-xl border border-gray-600 max-w-lg w-full space-y-4">
+            <h3 class="text-xl font-bold text-yellow-400">Kiírás Szerkesztése</h3>
+            <input type="hidden" id="edit_ann_id">
+            <input type="text" id="edit_ann_title" class="w-full p-2 bg-gray-900 rounded border border-gray-600">
+            <textarea id="edit_ann_content" rows="4" class="w-full p-2 bg-gray-900 rounded border border-gray-600"></textarea>
+            <div class="flex justify-end gap-3 pt-2">
+                <button onclick="closeEditAnnModal()" class="px-4 py-2 bg-gray-600 rounded cursor-pointer">Mégse</button>
+                <button onclick="saveAnnouncementEdit()" class="px-4 py-2 bg-green-600 rounded font-bold cursor-pointer">Mentés</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let globalTeams = [];
+        let globalCompetitors = [];
+        let globalJudges = [];
+        let globalTasks = [];
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-red-600', 'text-white');
+                btn.classList.add('bg-gray-800', 'text-gray-300');
+            });
+            document.getElementById('tab-' + tabName).classList.remove('hidden');
+            const activeBtn = document.getElementById('tab-btn-' + tabName);
+            activeBtn.classList.remove('bg-gray-800', 'text-gray-300');
+            activeBtn.classList.add('bg-red-600', 'text-white');
+        }
+
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/login.html';
+        }
+
+        async function loadData() {
+            const teamsRes = await fetch('/api/admin/teams');
+            if (teamsRes.status === 401) { window.location.href = '/login.html'; return; }
+            globalTeams = await teamsRes.json();
+
+            const allCompRes = await fetch('/api/admin/all-competitors');
+            if (allCompRes.ok) globalCompetitors = await allCompRes.json();
+
+            const pendingRes = await fetch('/api/admin/pending');
+            const pending = pendingRes.ok ? await pendingRes.json() : [];
+
+            const usersRes = await fetch('/api/admin/users');
+            const users = usersRes.ok ? await usersRes.json() : [];
+            globalJudges = users.filter(u => u.role === 'judge' || u.role === 'admin');
+
+            const tasksRes = await fetch('/api/tasks');
+            globalTasks = tasksRes.ok ? await tasksRes.json() : [];
+
+            renderAnnouncementsList();
+            renderPending(pending);
+            renderAllCompetitors(globalCompetitors);
+            renderTeams(globalTeams, globalCompetitors);
+            renderUsers(users);
+            renderTasks(globalTasks);
+            renderJudgeSelect(globalJudges);
+        }
+
+        // --- KIÍRÁSOK LOGIKA ---
+        async function renderAnnouncementsList() {
+            const res = await fetch('/api/announcements');
+            if (res.ok) {
+                const list = await res.json();
+                const container = document.getElementById('adminAnnouncementsList');
+                if (list.length === 0) {
+                    container.innerHTML = '<p class="text-gray-400 text-sm">Még nincsenek kiírások.</p>';
+                    return;
+                }
+                container.innerHTML = list.map(item => `
+                    <div class="bg-gray-900 p-4 rounded-xl border border-gray-700 flex justify-between items-center gap-4">
+                        <div>
+                            <h4 class="font-bold text-yellow-400">${item.title}</h4>
+                            <p class="text-xs text-gray-300 mt-1 line-clamp-2">${item.content}</p>
+                        </div>
+                        <div class="flex gap-2 flex-shrink-0">
+                            <button onclick="openEditAnnModal(${item.id}, '${encodeURIComponent(item.title)}', '${encodeURIComponent(item.content)}')" class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded text-xs font-bold">Szerkeszt</button>
+                            <button onclick="deleteAnnouncement(${item.id})" class="bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded text-xs font-bold">Törlés</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        document.getElementById('announcementForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('ann_title').value;
+            const content = document.getElementById('ann_content').value;
+            const res = await fetch('/api/admin/announcements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, content }) });
+            if ((await res.json()).success) {
+                alert('Kiírás sikeresen közzétéve!');
+                document.getElementById('announcementForm').reset();
+                renderAnnouncementsList();
+            }
+        });
+
+        function openEditAnnModal(id, encTitle, encContent) {
+            document.getElementById('edit_ann_id').value = id;
+            document.getElementById('edit_ann_title').value = decodeURIComponent(encTitle);
+            document.getElementById('edit_ann_content').value = decodeURIComponent(encContent);
+            document.getElementById('editAnnModal').classList.remove('hidden');
+        }
+        function closeEditAnnModal() { document.getElementById('editAnnModal').classList.add('hidden'); }
+        async function saveAnnouncementEdit() {
+            const id = document.getElementById('edit_ann_id').value;
+            const title = document.getElementById('edit_ann_title').value;
+            const content = document.getElementById('edit_ann_content').value;
+            const res = await fetch(`/api/admin/announcements/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, content }) });
+            if ((await res.json()).success) {
+                closeEditAnnModal();
+                renderAnnouncementsList();
+            }
+        }
+        async function deleteAnnouncement(id) {
+            if (!confirm('Biztosan törlöd ezt a kiírást?')) return;
+            const res = await fetch(`/api/admin/announcements/${id}`, { method: 'DELETE' });
+            if ((await res.json()).success) renderAnnouncementsList();
+        }
+
+        // --- SZEMPONTOK DINAMIKUS HOZZÁADÁSA ---
+        function addCriteriaField(name = '', unit = '', pts = '10') {
+            const container = document.getElementById('criteriaContainer');
+            const div = document.createElement('div');
+            div.className = 'flex gap-2 items-center bg-gray-900 p-3 rounded border border-gray-700';
+            div.innerHTML = `
+                <input type="text" placeholder="Szempont neve (pl. Sérültek kihozva)" value="${name}" class="crit-name flex-grow p-2 bg-gray-800 rounded text-sm border border-gray-600">
+                <input type="text" placeholder="Mértékegység (pl. db / egység)" value="${unit}" class="crit-unit w-36 p-2 bg-gray-800 rounded text-sm border border-gray-600">
+                <input type="number" placeholder="+/- pont" value="${pts}" class="crit-pts w-24 p-2 bg-gray-800 rounded text-sm border border-gray-600">
+                <button type="button" onclick="this.parentElement.remove()" class="bg-red-600 hover:bg-red-700 px-3 py-2 rounded text-xs font-bold">X</button>
+            `;
+            container.appendChild(div);
+        }
+
+        function getCriteriaFromForm() {
+            const items = [];
+            document.querySelectorAll('#criteriaContainer > div').forEach(div => {
+                const name = div.querySelector('.crit-name').value;
+                const unit_name = div.querySelector('.crit-unit').value;
+                const points_per_unit = div.querySelector('.crit-pts').value;
+                if (name && unit_name) {
+                    items.push({ name, unit_name, points_per_unit: parseFloat(points_per_unit) || 10 });
+                }
+            });
+            return items;
+        }
+
+        // --- FELADATOK KEZELÉSE & SZERKESZTÉSE ---
+        document.getElementById('taskForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const editId = document.getElementById('edit_task_id').value;
+            const payload = {
+                title: document.getElementById('task_title').value,
+                type: document.getElementById('task_type').value,
+                judge_id: document.getElementById('task_judge').value,
+                base_points: document.getElementById('task_base_points').value,
+                deduction_per_sec: document.getElementById('task_deduction').value,
+                criteria: getCriteriaFromForm()
+            };
+
+            const url = editId ? `/api/admin/tasks/${editId}` : '/api/admin/tasks';
+            const method = editId ? 'PUT' : 'POST';
+
+            const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if ((await res.json()).success) {
+                alert(editId ? 'Feladat sikeresen frissítve!' : 'Új feladat létrehozva!');
+                resetTaskForm();
+                loadData();
+            }
+        });
+
+        function editTask(id) {
+            const task = globalTasks.find(t => t.id === id);
+            if (!task) return;
+            document.getElementById('edit_task_id').value = task.id;
+            document.getElementById('task_title').value = task.title;
+            document.getElementById('task_type').value = task.type;
+            document.getElementById('task_judge').value = task.judge_id || '';
+            document.getElementById('task_base_points').value = task.base_points;
+            document.getElementById('task_deduction').value = task.deduction_per_sec;
+            document.getElementById('taskFormTitle').innerText = 'Versenyfeladat Szerkesztése';
+            document.getElementById('taskSubmitBtn').innerText = 'Módosítás Mentése';
+            document.getElementById('taskCancelBtn').classList.remove('hidden');
+
+            document.getElementById('criteriaContainer').innerHTML = '';
+            if (task.criteria && task.criteria.length > 0) {
+                task.criteria.forEach(c => addCriteriaField(c.name, c.unit_name, c.points_per_unit));
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function resetTaskForm() {
+            document.getElementById('taskForm').reset();
+            document.getElementById('edit_task_id').value = '';
+            document.getElementById('taskFormTitle').innerText = 'Új Versenyfeladat Létrehozása & Szempontok';
+            document.getElementById('taskSubmitBtn').innerText = 'Feladat Mentése';
+            document.getElementById('taskCancelBtn').classList.add('hidden');
+            document.getElementById('criteriaContainer').innerHTML = '';
+        }
+
+        function renderTasks(tasks) {
+            const tbody = document.getElementById('tasksTableBody');
+            tbody.innerHTML = '';
+            tasks.forEach(t => {
+                let criteriaStr = (t.criteria && t.criteria.length > 0)
+                    ? t.criteria.map(c => `<div class="text-xs text-yellow-300">• ${c.name}: ${c.points_per_unit > 0 ? '+' : ''}${c.points_per_unit} p / ${c.unit_name}</div>`).join('')
+                    : '<span class="text-xs text-gray-500">Nincsenek szempontok</span>';
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-750 text-sm">
+                        <td class="p-3 font-bold">${t.title}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded text-xs ${t.type === 'team' ? 'bg-purple-900 text-purple-200' : 'bg-blue-900 text-blue-200'}">${t.type === 'team' ? 'Csapat' : 'Egyéni'}</span></td>
+                        <td class="p-3">${t.judge_name || 'Nincs'}</td>
+                        <td class="p-3">${t.base_points} p (-${t.deduction_per_sec}/mp)</td>
+                        <td class="p-3">${criteriaStr}</td>
+                        <td class="p-3 space-x-2">
+                            <button onclick="editTask(${t.id})" class="bg-blue-600 hover:bg-blue-700 px-2.5 py-1 rounded text-xs font-bold">Szerkeszt</button>
+                            <button onclick="deleteTask(${t.id})" class="bg-red-600 hover:bg-red-700 px-2.5 py-1 rounded text-xs font-bold">Törlés</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function deleteTask(id) {
+            if (!confirm('Biztosan törlöd a feladatot?')) return;
+            const res = await fetch(`/api/admin/tasks/${id}`, { method: 'DELETE' });
+            if ((await res.json()).success) loadData();
+        }
+
+        // Egyéb admin renderelések (pending, competitors, teams, users) mint elõbb
+        function renderPending(pending) {
+            const tbody = document.getElementById('pendingTableBody');
+            tbody.innerHTML = '';
+            pending.forEach(comp => {
+                let teamOptions = globalTeams.map(t => `<option value="${t.id}">${t.team_number}. ${t.name}</option>`).join('');
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-750">
+                        <td class="p-3 font-semibold">${comp.name}</td>
+                        <td class="p-3">${comp.gender === 'female' ? '👩 Nő' : '👨 Férfi'}</td>
+                        <td class="p-3">${comp.school}</td>
+                        <td class="p-3 text-sm">${comp.birth_place} (${comp.birth_date ? comp.birth_date.split('T')[0] : ''})</td>
+                        <td class="p-3 flex gap-2 items-center">
+                            <select id="team_select_${comp.id}" class="p-2 bg-gray-900 rounded border border-gray-600 text-sm">
+                                <option value="">Csapat nélkül...</option>
+                                ${teamOptions}
+                            </select>
+                            <button onclick="approve(${comp.id})" class="bg-green-600 px-3 py-2 rounded text-sm font-bold cursor-pointer">Elfogad</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function renderAllCompetitors(competitors) {
+            const tbody = document.getElementById('allCompetitorsTableBody');
+            tbody.innerHTML = '';
+            competitors.forEach(c => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-750">
+                        <td class="p-3 font-semibold">${c.name}</td>
+                        <td class="p-3">${c.gender === 'female' ? '👩 Nő' : '👨 Férfi'}</td>
+                        <td class="p-3 text-sm">${c.school}</td>
+                        <td class="p-3"><span class="px-2 py-1 rounded text-xs bg-gray-700">${c.status}</span></td>
+                        <td class="p-3 text-sm">${c.team_name ? c.team_number + '. ' + c.team_name : 'Nincs'}</td>
+                        <td class="p-3 space-x-2">
+                            <button onclick="deleteCompetitor(${c.id})" class="bg-red-600 px-2 py-1 rounded text-xs font-bold cursor-pointer">Törlés</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function renderTeams(teams, allCompetitors) {
+            const container = document.getElementById('teamsContainer');
+            container.innerHTML = '';
+            const unassigned = allCompetitors.filter(c => !c.team_id);
+            teams.forEach(team => {
+                let membersHtml = (team.members && team.members.length > 0) 
+                    ? team.members.map(m => `<li class="flex justify-between bg-gray-900 p-2 rounded text-sm"><span>${m.name}</span><button onclick="removeMember(${team.id}, ${m.id})" class="text-red-400 text-xs">Eltávolít</button></li>`).join('')
+                    : '<li class="text-xs text-gray-500 italic">Nincsenek tagok.</li>';
+                let addOpts = unassigned.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+
+                container.innerHTML += `
+                    <div class="bg-gray-900 p-5 rounded-xl border border-gray-700 space-y-4">
+                        <div class="flex justify-between items-center border-b border-gray-700 pb-2">
+                            <h3 class="font-bold text-yellow-400">${team.team_number}. ${team.name}</h3>
+                            <button onclick="deleteTeam(${team.id})" class="text-red-400 text-xs">Csapat Törlése</button>
+                        </div>
+                        <ul class="space-y-1">${membersHtml}</ul>
+                        <div class="flex gap-2">
+                            <select id="add_member_${team.id}" class="flex-grow p-1.5 bg-gray-800 rounded text-xs"><option value="">Tag hozzáadása...</option>${addOpts}</select>
+                            <button onclick="addMember(${team.id})" class="bg-green-600 px-2 py-1 rounded text-xs font-bold">Hozzáad</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function renderUsers(users) {
+            const tbody = document.getElementById('usersTableBody');
+            tbody.innerHTML = '';
+            users.forEach(u => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-750">
+                        <td class="p-3 font-semibold">${u.username}</td>
+                        <td class="p-3"><span class="px-2 py-1 bg-gray-700 rounded text-xs">${u.role}</span></td>
+                        <td class="p-3"><button onclick="deleteUser(${u.id})" class="bg-red-600 px-2 py-1 rounded text-xs">Törlés</button></td>
+                    </tr>
+                `;
+            });
+        }
+
+        function renderJudgeSelect(judges) {
+            const sel = document.getElementById('task_judge');
+            sel.innerHTML = '<option value="">Válassz bírót...</option>' + judges.map(j => `<option value="${j.id}">${j.username} (${j.role})</option>`).join('');
+        }
+
+        async function approve(compId) {
+            const teamId = document.getElementById(`team_select_${compId}`).value;
+            const res = await fetch('/api/admin/approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ competitorId: compId, teamId }) });
+            if ((await res.json()).success) loadData();
+        }
+
+        async function deleteCompetitor(id) {
+            if (!confirm('Biztosan törlöd?')) return;
+            const res = await fetch(`/api/admin/competitors/${id}`, { method: 'DELETE' });
+            if ((await res.json()).success) loadData();
+        }
+
+        async function deleteTeam(id) {
+            if (!confirm('Biztosan törlöd a csapatot?')) return;
+            const res = await fetch(`/api/admin/teams/${id}`, { method: 'DELETE' });
+            if ((await res.json()).success) loadData();
+        }
+
+        async function addMember(teamId) {
+            const competitorId = document.getElementById(`add_member_${teamId}`).value;
+            if (!competitorId) return;
+            const res = await fetch(`/api/admin/teams/${teamId}/members`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ competitorId }) });
+            if ((await res.json()).success) loadData();
+        }
+
+        async function removeMember(teamId, compId) {
+            const res = await fetch(`/api/admin/teams/${teamId}/members/${compId}`, { method: 'DELETE' });
+            if ((await res.json()).success) loadData();
+        }
+
+        async function deleteUser(id) {
+            if (!confirm('Biztosan törlöd a felhasználót?')) return;
+            const res = await fetch(`/api/admin/users/${id}`, { method: 'DELETE' });
+            if ((await res.json()).success) loadData();
+        }
+
+        document.getElementById('userForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const res = await fetch('/api/admin/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: document.getElementById('new_username').value, password: document.getElementById('new_password').value, role: document.getElementById('new_role').value }) });
+            if ((await res.json()).success) { alert('Fiók létrehozva!'); loadData(); }
+        });
+
+        document.getElementById('teamForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const res = await fetch('/api/admin/teams', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ team_number: document.getElementById('team_number').value, name: document.getElementById('team_name').value }) });
+            if ((await res.json()).success) { alert('Csapat létrehozva!'); loadData(); }
+        });
+
+        loadData();
+    </script>
+</body>
+</html>

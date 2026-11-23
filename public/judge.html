@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bírói Panel - Lövészverseny</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body class="bg-gray-900 text-white font-sans p-6">
+    <div class="max-w-4xl mx-auto space-y-8">
+        <header class="bg-gray-800 p-5 rounded-2xl flex justify-between items-center shadow border border-gray-700">
+            <h1 class="text-2xl font-bold text-red-500">⏱️ Bírói Pontozó & Eredménykezelő</h1>
+            <div class="flex gap-3">
+                <a href="/results.html" target="_blank" class="bg-yellow-600 hover:bg-yellow-500 px-3 py-2 rounded text-sm font-bold">🏆 Eredmények</a>
+                <button onclick="logout()" class="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded text-sm cursor-pointer font-bold">Kilépés</button>
+            </div>
+        </header>
+
+        <!-- PONTOZÓ ŰRLAP -->
+        <div class="bg-gray-800 p-8 rounded-2xl shadow-xl space-y-6 border border-gray-700">
+            <h2 class="text-xl font-bold text-yellow-400">Új Eredmény Rögzítése</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Feladat kiválasztása:</label>
+                    <select id="taskSelect" onchange="onTaskChange()" class="w-full p-3 bg-gray-900 rounded border border-gray-600">
+                        <option value="">Válassz feladatot...</option>
+                    </select>
+                    <p id="taskInfo" class="text-xs text-yellow-400 mt-1"></p>
+                </div>
+
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Csapat kiválasztása:</label>
+                    <select id="teamSelect" onchange="onTeamChange()" class="w-full p-3 bg-gray-900 rounded border border-gray-600">
+                        <option value="">Válassz csapatot...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="competitorContainer" class="hidden">
+                <label class="block text-sm text-gray-400 mb-1">Csapattag (Egyéni feladathoz):</label>
+                <select id="competitorSelect" class="w-full p-3 bg-gray-900 rounded border border-gray-600">
+                    <option value="">Válassz versenyzőt...</option>
+                </select>
+            </div>
+
+            <!-- DINAMIKUS SZEMPONTOK MEZŐK (Pl. Sérültek kihozva) -->
+            <div id="criteriaInputContainer" class="hidden space-y-3 bg-gray-900 p-4 rounded-xl border border-gray-700">
+                <h3 class="text-sm font-bold text-yellow-400">🎯 Pontozási Szempontok / Al-értékek</h3>
+                <div id="criteriaInputsList" class="space-y-3"></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Teljesítési Idő (pp:mp, pl. 01:30):</label>
+                    <input type="text" id="time_string" placeholder="01:30" required class="w-full p-3 bg-gray-900 rounded border border-gray-600">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Egyedi Pont (Opcionális felülírás):</label>
+                    <input type="number" id="manual_points" placeholder="Automatikus számításhoz üres" class="w-full p-3 bg-gray-900 rounded border border-gray-600">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm text-gray-400 mb-1">Megjegyzés a feladathoz / versenyzőhöz:</label>
+                <textarea id="score_notes" placeholder="Pl. Fegyver hiba vagy különleges észrevétel..." rows="2" class="w-full p-3 bg-gray-900 rounded border border-gray-600"></textarea>
+            </div>
+
+            <button onclick="submitScore()" class="w-full bg-red-600 hover:bg-red-700 p-4 rounded-xl font-bold text-lg cursor-pointer transition">Eredmény Rögzítése</button>
+        </div>
+
+        <!-- BÍRÓ ÁLTAL RÖGZÍTETT EREDMÉNYEK & SZERKESZTÉS -->
+        <section class="bg-gray-800 p-8 rounded-2xl shadow-xl border border-gray-700 space-y-4">
+            <h2 class="text-xl font-bold text-yellow-400">📝 Az Általam Rögzített Eredmények (Módosítás / Törlés)</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-gray-700 text-gray-300">
+                            <th class="p-3">Feladat</th>
+                            <th class="p-3">Kitől / Csapattól</th>
+                            <th class="p-3">Idő (mp)</th>
+                            <th class="p-3">Pontszám</th>
+                            <th class="p-3">Megjegyzés</th>
+                            <th class="p-3">Műveletek</th>
+                        </tr>
+                    </thead>
+                    <tbody id="myScoresTable" class="divide-y divide-gray-700"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- MODÁLIS EREDMÉNY SZERKESZTÉSHEZ -->
+    <div id="editScoreModal" class="hidden fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50">
+        <div class="bg-gray-800 p-6 rounded-xl border border-gray-600 max-w-lg w-full space-y-4">
+            <h3 class="text-xl font-bold text-yellow-400">Rögzített Eredmény Szerkesztése</h3>
+            <input type="hidden" id="edit_score_id">
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Idő (mp vagy pp:mp)</label>
+                <input type="text" id="edit_score_time" class="w-full p-2 bg-gray-900 rounded border border-gray-600">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Egyedi Pont (Opcionális)</label>
+                <input type="number" id="edit_score_points" class="w-full p-2 bg-gray-900 rounded border border-gray-600">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Megjegyzés</label>
+                <textarea id="edit_score_notes" rows="2" class="w-full p-2 bg-gray-900 rounded border border-gray-600"></textarea>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button onclick="closeEditScoreModal()" class="px-4 py-2 bg-gray-600 rounded cursor-pointer">Mégse</button>
+                <button onclick="saveScoreEdit()" class="px-4 py-2 bg-green-600 rounded font-bold cursor-pointer">Módosítás Mentése</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let globalTasks = [];
+        let globalTeams = [];
+
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/login.html';
+        }
+
+        socket.on('score_saved', (data) => {
+            alert(data.message);
+            document.getElementById('time_string').value = '';
+            document.getElementById('manual_points').value = '';
+            document.getElementById('score_notes').value = '';
+            loadMyScores();
+        });
+        socket.on('score_error', (data) => { alert('Hiba: ' + data.message); });
+
+        async function init() {
+            const taskRes = await fetch('/api/judge/tasks');
+            if (taskRes.status === 401) { window.location.href = '/login.html'; return; }
+            globalTasks = await taskRes.json();
+            const taskSel = document.getElementById('taskSelect');
+            globalTasks.forEach(t => {
+                taskSel.innerHTML += `<option value="${t.id}">${t.title} (${t.type === 'team' ? 'Csapat' : 'Egyéni'}, Alap: ${t.base_points}p)</option>`;
+            });
+
+            const teamRes = await fetch('/api/admin/teams');
+            if (teamRes.ok) globalTeams = await teamRes.json();
+            const teamSel = document.getElementById('teamSelect');
+            globalTeams.forEach(t => {
+                teamSel.innerHTML += `<option value="${t.id}">${t.team_number}. ${t.name}</option>`;
+            });
+
+            loadMyScores();
+        }
+
+        function onTaskChange() {
+            const taskId = document.getElementById('taskSelect').value;
+            const task = globalTasks.find(t => t.id == taskId);
+            const infoEl = document.getElementById('taskInfo');
+            const compContainer = document.getElementById('competitorContainer');
+            const criteriaBox = document.getElementById('criteriaInputContainer');
+            const criteriaList = document.getElementById('criteriaInputsList');
+
+            criteriaList.innerHTML = '';
+            if (!task) {
+                infoEl.innerText = '';
+                compContainer.classList.add('hidden');
+                criteriaBox.classList.add('hidden');
+                return;
+            }
+
+            infoEl.innerText = `Típus: ${task.type === 'team' ? 'Csapatfeladat' : 'Egyéni'} | Alappont: ${task.base_points} | Levonás: -${task.deduction_per_sec}p/mp`;
+            if (task.type === 'individual') {
+                compContainer.classList.remove('hidden');
+                onTeamChange();
+            } else {
+                compContainer.classList.add('hidden');
+            }
+
+            // Ha vannak szempontok, rendereljük ki a beviteli mezőket
+            if (task.criteria && task.criteria.length > 0) {
+                criteriaBox.classList.remove('hidden');
+                task.criteria.forEach(c => {
+                    criteriaList.innerHTML += `
+                        <div class="flex justify-between items-center gap-4 bg-gray-800 p-2.5 rounded border border-gray-700">
+                            <span class="text-sm font-semibold">${c.name} (${c.points_per_unit > 0 ? '+' : ''}${c.points_per_unit}p / ${c.unit_name})</span>
+                            <input type="number" step="1" value="0" data-crit-id="${c.id}" class="crit-qty-input w-24 p-2 bg-gray-900 rounded border border-gray-600 text-center font-bold">
+                        </div>
+                    `;
+                });
+            } else {
+                criteriaBox.classList.add('hidden');
+            }
+        }
+
+        function onTeamChange() {
+            const teamId = document.getElementById('teamSelect').value;
+            const team = globalTeams.find(t => t.id == teamId);
+            const compSel = document.getElementById('competitorSelect');
+            compSel.innerHTML = '<option value="">Válassz versenyzőt...</option>';
+            if (team && team.members) {
+                team.members.forEach(m => {
+                    compSel.innerHTML += `<option value="${m.id}">${m.name}</option>`;
+                });
+            }
+        }
+
+        function submitScore() {
+            const taskId = document.getElementById('taskSelect').value;
+            const teamId = document.getElementById('teamSelect').value;
+            const compId = document.getElementById('competitorSelect').value;
+            const timeStr = document.getElementById('time_string').value;
+            const manualPts = document.getElementById('manual_points').value;
+            const notes = document.getElementById('score_notes').value;
+            const task = globalTasks.find(t => t.id == taskId);
+
+            if (!taskId || !teamId || !timeStr) {
+                alert('Minden kötelező mezőt tölts ki (feladat, csapat, idő)!');
+                return;
+            }
+
+            if (task && task.type === 'individual' && !compId) {
+                alert('Ehhez az egyéni feladathoz ki kell választanod egy csapattagot is!');
+                return;
+            }
+
+            // Gyűjtsük össze a szempont mennyiségeket
+            const criteria_quantities = {};
+            document.querySelectorAll('.crit-qty-input').forEach(inp => {
+                const critId = inp.getAttribute('data-crit-id');
+                criteria_quantities[critId] = parseFloat(inp.value) || 0;
+            });
+
+            socket.emit('submit_score', {
+                task_id: taskId,
+                team_id: teamId,
+                competitor_id: compId || null,
+                time_string: timeStr,
+                manual_points: manualPts,
+                notes: notes,
+                criteria_quantities: criteria_quantities
+            });
+        }
+
+        async function loadMyScores() {
+            const res = await fetch('/api/judge/scores');
+            if (res.ok) {
+                const scores = await res.json();
+                const tbody = document.getElementById('myScoresTable');
+                tbody.innerHTML = '';
+                if (scores.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-400">Még nem rögzítettél eredményt.</td></tr>';
+                    return;
+                }
+                scores.forEach(s => {
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-gray-750">
+                            <td class="p-3 font-bold">${s.task_name}</td>
+                            <td class="p-3">${s.competitor_name ? s.competitor_name + ' (' + s.team_name + ')' : 'Csapat: ' + s.team_name}</td>
+                            <td class="p-3 text-blue-400">${s.recorded_time} mp</td>
+                            <td class="p-3 font-extrabold text-green-400">${s.awarded_points} p</td>
+                            <td class="p-3 text-gray-300 italic text-xs">${s.notes || '-'}</td>
+                            <td class="p-3 space-x-2">
+                                <button onclick="openEditScoreModal(${s.id}, '${s.recorded_time}', ${s.awarded_points}, '${s.notes || ''}')" class="bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded text-xs font-bold">Szerkeszt</button>
+                                <button onclick="deleteScore(${s.id})" class="bg-red-600 hover:bg-red-700 px-2 py-1 rounded text-xs font-bold">Törlés</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        function openEditScoreModal(id, time, points, notes) {
+            document.getElementById('edit_score_id').value = id;
+            document.getElementById('edit_score_time').value = time;
+            document.getElementById('edit_score_points').value = points;
+            document.getElementById('edit_score_notes').value = notes;
+            document.getElementById('editScoreModal').classList.remove('hidden');
+        }
+        function closeEditScoreModal() { document.getElementById('editScoreModal').classList.add('hidden'); }
+
+        async function saveScoreEdit() {
+            const id = document.getElementById('edit_score_id').value;
+            const time_string = document.getElementById('edit_score_time').value;
+            const manual_points = document.getElementById('edit_score_points').value;
+            const notes = document.getElementById('edit_score_notes').value;
+
+            const res = await fetch(`/api/judge/scores/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ time_string, manual_points, notes })
+            });
+            if ((await res.json()).success) {
+                closeEditScoreModal();
+                loadMyScores();
+                alert('Eredmény sikeresen frissítve!');
+            }
+        }
+
+        async function deleteScore(id) {
+            if (!confirm('Biztosan törlöd ezt az eredményt?')) return;
+            const res = await fetch(`/api/judge/scores/${id}`, { method: 'DELETE' });
+            if ((await res.json()).success) loadMyScores();
+        }
+
+        init();
+    </script>
+</body>
+</html>
