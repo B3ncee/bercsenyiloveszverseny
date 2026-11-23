@@ -1,0 +1,2 @@
+# bercsenyiloveszverseny
+egy web versenyhez
