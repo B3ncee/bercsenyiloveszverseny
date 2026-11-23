@@ -25,13 +25,38 @@ const sessionMiddleware = session({
 app.use(sessionMiddleware);
 io.engine.use(sessionMiddleware);
 
-const db = mysql.createConnection({
-    host: process.env.MYSQLHOST || process.env.DB_HOST,
-    user: process.env.MYSQLUSER || process.env.DB_USER,
-    password: process.env.MYSQLPASSWORD || process.env.DB_PASS,
-    database: process.env.MYSQL_DATABASE || process.env.MYSQLDATABASE || process.env.DB_NAME || 'loveszverseny',
-    port: process.env.MYSQLPORT || process.env.DB_PORT || 3306
-});
+let db;
+
+function handleDisconnect() {
+    db = mysql.createConnection({
+        host: process.env.MYSQLHOST || process.env.DB_HOST,
+        user: process.env.MYSQLUSER || process.env.DB_USER,
+        password: process.env.MYSQLPASSWORD || process.env.DB_PASS,
+        database: process.env.MYSQL_DATABASE || process.env.MYSQLDATABASE || process.env.DB_NAME || 'loveszverseny',
+        port: process.env.MYSQLPORT || process.env.DB_PORT || 3306,
+        connectTimeout: 30000 // 30 másodperc időtúllépési határ
+    });
+
+    db.connect((err) => {
+        if (err) {
+            console.error('MySQL csatlakozási hiba:', err);
+            console.setTimeout(handleDisconnect, 2000); // Újrapróbálás 2 másodperc múlva
+        } else {
+            console.log('Sikeres csatlakozás a MySQL adatbázishoz!');
+        }
+    });
+
+    db.on('error', (err) => {
+        console.error('Adatbázis hiba történt:', err);
+        if (err.code === 'PROTOCOL_CONNECTION_LOST') {
+            handleDisconnect(); // Ha megszakad, újracsatlakozik automatikusan
+        } else {
+            throw err;
+        }
+    });
+}
+
+handleDisconnect();
 
 db.connect(err => {
     if (err) {
